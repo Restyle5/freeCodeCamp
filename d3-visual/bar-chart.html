@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+        integrity="sha512-vc58qvvBdrDR4etbxMdlTt4GBQk1qjvyORR2nrsPsFPyrs+/u5c3+1Ct6upOgdZoIl7eq6k3a1UPDSNAQi/32A=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <title>Bar Chart</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: gray;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        svg {
+            display: block;
+        }
+
+        #tooltip {
+            position: absolute;
+            opacity: 0;
+            background-color: lightgray;
+            padding: 5px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="background-color: white;" id="content">
+        <h2 id="title">United States GDP</h2>
+        <div id="tooltip"></div>
+    </div>
+    <script>
+        const width = 900;
+        const height = 500;
+        const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+
+        const body = d3.select("div#content");
+        const svg = body.append("svg")
+            .attr('width', width)
+            .attr('height', height);
+
+        // svg.append("rect")
+        //     .attr("width", width)
+        //     .attr("height", height)
+        //     .attr("fill", "white");
+
+        const fetchDataAndRender = async () => {
+            try {
+                const response = await fetch('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json');
+                const jsonData = await response.json();
+                const data = jsonData.data;
+                // data.unshift(['1946-01-01', 0]);
+
+                const parseDate = d3.timeParse("%Y-%m-%d");
+                const dates = data.map(d => parseDate(d[0]));
+                const values = data.map(d => d[1]);
+
+                // Initialize x scale (time scale)
+                const x = d3.scaleTime()
+                    .domain([d3.min(dates), d3.max(dates)])
+                    .range([margin.left, width - margin.right]);
+
+                // Initialize y scale (linear scale)
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(values)])
+                    .range([height - margin.bottom, margin.top]);
+
+                // Append x-axis
+                const xAxis = d3.axisBottom(x);
+                svg.append("g")
+                    .attr("transform", `translate(0, ${height - margin.bottom})`)
+                    .attr('id', 'x-axis')
+                    .call(xAxis);
+
+                // Append y-axis
+                const yAxis = d3.axisLeft(y);
+                svg.append("g")
+                    .attr("transform", `translate(${margin.left}, 0)`)
+                    .attr('id', 'y-axis')
+                    .call(yAxis);
+
+                const barWidth = (width - margin.left - margin.right) / data.length;
+
+                const bars = svg.selectAll("rect")
+                    .data(data)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "bar")
+                    .attr("x", (d, i) => {
+                        // Use the x scale to position the bars
+                        return x(parseDate(d[0])); // Correctly position the bars using x scale
+                    })
+                    .attr("y", d => y(d[1]))
+                    .attr("width", barWidth)
+                    .attr("data-date", d => d[0])
+                    .attr("data-gdp", d => d[1])
+                    .attr("height", d => height - margin.bottom - y(d[1]))
+                    .attr("fill", "steelblue");
+
+                // Tooltip behavior
+                bars.on("mouseover", (event, d) => {
+                    const tooltip = d3.select("#tooltip");
+                    tooltip.transition().duration(200).style("opacity", 1);
+                    tooltip.html(`Date: ${d[0]}<br>GDP: $${d[1]} Billion`)
+                        .attr("data-date", d[0])
+                        .style("left", `${event.pageX + 5}px`)
+                        .style("top", `${event.pageY - 28}px`);
+                })
+                    .on("mouseout", () => {
+                        const tooltip = d3.select("#tooltip");
+                        tooltip.transition().duration(200).style("opacity", 0);
+                    });
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        };
+
+        fetchDataAndRender();
+    </script>
+
+</body>
+
+</html>
